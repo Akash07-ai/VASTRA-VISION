@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
@@ -13,30 +13,38 @@ function App() {
   const [page, setPage] = useState<PageKey>('home');
   const [findSimilarImage, setFindSimilarImage] = useState<TextileImage | null>(null);
 
-  const navigate = (p: PageKey) => {
+  const navigate = useCallback((p: PageKey) => {
     setPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
-  const handleFindSimilar = (image: TextileImage) => {
+  const handleFindSimilar = useCallback((image: TextileImage) => {
     setFindSimilarImage(image);
-    navigate('identify');
-  };
+    setPage('identify');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
-  const currentPage = useMemo(() => {
-    if (page === 'identify') return <IdentifyDesign initialImage={findSimilarImage} />;
-    if (page === 'verify') return <VerifyDesign />;
-    if (page === 'gallery') return <Gallery onFindSimilar={handleFindSimilar} />;
-    if (page === 'color') return <ColorInvariance />;
-    if (page === 'about') return <About />;
-    return <Home navigate={navigate} />;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, findSimilarImage]);
+  const renderPage = () => {
+    switch (page) {
+      case 'identify':
+        return <IdentifyDesign initialImage={findSimilarImage} onFindSimilarConsumed={() => setFindSimilarImage(null)} />;
+      case 'verify':
+        return <VerifyDesign />;
+      case 'gallery':
+        return <Gallery onFindSimilar={handleFindSimilar} />;
+      case 'color':
+        return <ColorInvariance />;
+      case 'about':
+        return <About />;
+      default:
+        return <Home navigate={navigate} />;
+    }
+  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-ivory text-ink">
       <Navbar activePage={page} navigate={navigate} />
-      <main>{currentPage}</main>
+      <main>{renderPage()}</main>
       <Footer />
     </div>
   );

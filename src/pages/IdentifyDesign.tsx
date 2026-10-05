@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ErrorState } from '../components/ErrorState';
 import { ImageQualityPanel } from '../components/ImageQualityPanel';
 import { ImageUploader } from '../components/ImageUploader';
@@ -18,9 +18,10 @@ const NO_MATCH_THRESHOLD = 0.5;
 
 interface IdentifyDesignProps {
   initialImage?: TextileImage | null;
+  onFindSimilarConsumed?: () => void;
 }
 
-export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
+export function IdentifyDesign({ initialImage, onFindSimilarConsumed }: IdentifyDesignProps) {
   const [image, setImage] = useState<UploadedImage | null>(null);
   const [quality, setQuality] = useState<ImageQualityReport | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
@@ -28,32 +29,41 @@ export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
   const [error, setError] = useState('');
   const [research, setResearch] = useState(false);
   const { favorites, toggle, isFavorite } = useFavorites();
+  // Track which initialImage we've already processed to avoid re-running on same object
+  const lastInitialRef = useRef<TextileImage | null>(null);
 
-  // Handle "Find Similar" from gallery — pre-populate with a TextileImage
   useEffect(() => {
     if (!initialImage) return;
-    // Convert TextileImage → UploadedImage-like object using its src as a data URL proxy
-    // We create a synthetic UploadedImage from the gallery image
+    // Don't re-process the same image reference
+    if (lastInitialRef.current === initialImage) return;
+    lastInitialRef.current = initialImage;
+
+    setResult(null);
+    setQuality(null);
+    setError('');
+
+    // Try to fetch the asset as a blob for a proper File object
     fetch(initialImage.src)
       .then((r) => r.blob())
       .then((blob) => {
-        const file = new File([blob], initialImage.fileName, { type: blob.type || 'image/jpeg' });
+        const mimeType = blob.type || 'image/jpeg';
+        const file = new File([blob], initialImage.fileName, { type: mimeType });
         const reader = new FileReader();
         reader.onload = () => {
+          const src = String(reader.result);
           const uploaded: UploadedImage = {
-            id: `${file.name}-${Date.now()}`,
+            id: `${initialImage.id}-${Date.now()}`,
             file,
-            src: String(reader.result),
+            src,
             inferredCategory: initialImage.category,
           };
           setImage(uploaded);
-          setResult(null);
-          setQuality(null);
+          analyzeImageQuality(file, src).then(setQuality);
         };
         reader.readAsDataURL(file);
       })
       .catch(() => {
-        // Fallback: use src directly (works for data URLs and same-origin assets)
+        // Fallback for same-origin assets already served as URLs
         const syntheticFile = new File([], initialImage.fileName, { type: 'image/jpeg' });
         const uploaded: UploadedImage = {
           id: `${initialImage.id}-${Date.now()}`,
@@ -62,33 +72,60 @@ export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
           inferredCategory: initialImage.category,
         };
         setImage(uploaded);
-        setResult(null);
-        setQuality(null);
+        // Quality analysis will show 0×0 for synthetic files — acceptable
+        analyzeImageQuality(syntheticFile, initialImage.src).then(setQuality);
       });
-  }, [initialImage]);
+
+    onFindSimilarConsumed?.();
+  }, [initialImage, onFindSimilarConsumed]);
 
   const handleImageChange = async (img: UploadedImage | null) => {
     setImage(img);
     setResult(null);
     setQuality(null);
+    setError('');
     if (img) {
       const report = await analyzeImageQuality(img.file, img.src);
       setQuality(report);
     }
   };
 
-  const handleFindSimilar = (galleryImage: TextileImage) => {
-    const syntheticFile = new File([], galleryImage.fileName, { type: 'image/jpeg' });
-    const uploaded: UploadedImage = {
-      id: `${galleryImage.id}-${Date.now()}`,
-      file: syntheticFile,
-      src: galleryImage.src,
-      inferredCategory: inferCategoryFromName(galleryImage.fileName),
-    };
-    setImage(uploaded);
+  // "Find Similar" from a MatchCard — re-use the same page without navigating away
+  const handleFindSimilar = async (galleryImage: TextileImage) => {
     setResult(null);
     setQuality(null);
+    setError('');
+    lastInitialRef.current = null;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const blob = await fetch(galleryImage.src).then((r) => r.blob());
+      const mimeType = blob.type || 'image/jpeg';
+      const file = new File([blob], galleryImage.fileName, { type: mimeType });
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = String(reader.result);
+        const uploaded: UploadedImage = {
+          id: `${galleryImage.id}-${Date.now()}`,
+          file,
+          src,
+          inferredCategory: inferCategoryFromName(galleryImage.fileName),
+        };
+        setImage(uploaded);
+        analyzeImageQuality(file, src).then(setQuality);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      const syntheticFile = new File([], galleryImage.fileName, { type: 'image/jpeg' });
+      const uploaded: UploadedImage = {
+        id: `${galleryImage.id}-${Date.now()}`,
+        file: syntheticFile,
+        src: galleryImage.src,
+        inferredCategory: inferCategoryFromName(galleryImage.fileName),
+      };
+      setImage(uploaded);
+      analyzeImageQuality(syntheticFile, galleryImage.src).then(setQuality);
+    }
   };
 
   const analyze = async () => {
@@ -118,7 +155,7 @@ export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
         <ImageUploader label="Upload a saree or fabric image" image={image} onChange={handleImageChange} />
         {quality ? <ImageQualityPanel report={quality} /> : null}
         {error ? <ErrorState message={error} /> : null}
-        <button className="btn btn-primary justify-center" onClick={analyze} disabled={processing}>
+        <button className="btn btn-primary w-full justify-center" onClick={analyze} disabled={processing}>
           Analyze Design
         </button>
       </section>
@@ -132,7 +169,7 @@ export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
           ) : (
             <div className="space-y-8">
               <div className="rounded border border-gold/25 bg-white p-6 shadow-soft">
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
                   <p className="section-eyebrow">Design Analysis</p>
                   <ViewToggle research={research} onChange={setResearch} />
                 </div>
@@ -140,20 +177,25 @@ export function IdentifyDesign({ initialImage }: IdentifyDesignProps) {
                   <div>
                     <p className="text-sm text-ink/55">Category</p>
                     <p className="text-2xl font-semibold text-ink">{result.category}</p>
-                    <p className="mt-1 text-xs text-ink/40 uppercase tracking-wide">Demo / Prototype Result</p>
+                    <p className="mt-1 text-xs uppercase tracking-wide text-ink/40">Demo / Prototype Result</p>
                   </div>
                   <div className="md:col-span-2">
                     <SimilarityMeter value={result.similarity} label="Demo similarity" />
                     <p className="mt-3 text-sm text-ink/65">Match Strength: {result.strength}</p>
                     {research ? (
-                      <div className="mt-4 rounded border border-ink/10 bg-ivory p-3 text-sm space-y-1 text-ink/70">
-                        <p className="font-semibold text-ink">Research Details</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-2">
-                          <span>Similarity score</span><span className="font-mono">{result.similarity.toFixed(4)}</span>
-                          <span>Category signal</span><span>{result.category}</span>
-                          <span>Model</span><span className="text-ink/40">Not connected</span>
-                          <span>Embedding dim</span><span className="text-ink/40">N/A (prototype)</span>
-                          <span>Retrieval</span><span className="text-ink/40">Deterministic demo</span>
+                      <div className="mt-4 rounded border border-ink/10 bg-ivory p-3 text-sm text-ink/70">
+                        <p className="mb-2 font-semibold text-ink">Research Details</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                          <span>Similarity score</span>
+                          <span className="font-mono">{result.similarity.toFixed(4)}</span>
+                          <span>Category signal</span>
+                          <span>{result.category}</span>
+                          <span>Model</span>
+                          <span className="text-ink/40">Not connected</span>
+                          <span>Embedding dim</span>
+                          <span className="text-ink/40">N/A (prototype)</span>
+                          <span>Retrieval</span>
+                          <span className="text-ink/40">Deterministic demo</span>
                         </div>
                       </div>
                     ) : null}

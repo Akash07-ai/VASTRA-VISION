@@ -43,7 +43,7 @@ export function ImageQualityPanel({ report }: ImageQualityPanelProps) {
       aria-label="Image quality report"
     >
       <p className="section-eyebrow mb-3">Image Quality</p>
-      <div className="divide-y divide-ink/8">
+      <div className="divide-y divide-black/10">
         <Row
           label="Resolution"
           value={report.width > 0 ? `${report.width} × ${report.height}` : '—'}

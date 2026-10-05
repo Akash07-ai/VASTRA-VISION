@@ -45,8 +45,8 @@ export function VerifyDesign() {
       <section className="mx-auto mt-8 max-w-6xl space-y-6">
         {error ? <ErrorState message={error} /> : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <button className="btn btn-primary" onClick={compare} disabled={processing}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <button className="btn btn-primary w-full justify-center sm:w-auto" onClick={compare} disabled={processing}>
             Compare Designs
           </button>
           {result ? <ViewToggle research={research} onChange={setResearch} /> : null}

@@ -39,7 +39,6 @@ export function ColorInvariance() {
       <section className="mx-auto mt-10 max-w-7xl">
         {src ? (
           <>
-            {/* Variant grid */}
             <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-4">
               <VariantCard title="Original" src={src} caption={caption} step="1" />
               <VariantCard title="Color Changed" src={src} className="variant-hue" caption="Palette shifted" step="2" />
@@ -47,7 +46,6 @@ export function ColorInvariance() {
               <VariantCard title="Brightness Adjusted" src={src} className="variant-bright" caption="Lightness changed" step="4" />
             </div>
 
-            {/* Before/After slider */}
             <div className="mt-10">
               <p className="section-eyebrow mb-4">Before / After Slider</p>
               <BeforeAfterSlider src={src} />
@@ -85,7 +83,7 @@ function VariantCard({ title, src, caption, className = '', step }: VariantCardP
     <article className="card overflow-hidden">
       <div className="relative">
         <img src={src} alt={`${title} textile variant`} className={`h-64 w-full object-cover ${className}`} />
-        <span className="absolute top-2 left-2 rounded bg-ink/70 px-2 py-0.5 text-xs font-bold text-ivory">
+        <span className="absolute left-2 top-2 rounded bg-ink/70 px-2 py-0.5 text-xs font-bold text-ivory">
           {step}
         </span>
       </div>
@@ -99,45 +97,68 @@ function VariantCard({ title, src, caption, className = '', step }: VariantCardP
 
 function BeforeAfterSlider({ src }: { src: string }) {
   const [position, setPosition] = useState(50);
+  const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMove = (clientX: number) => {
+  const getPercent = (clientX: number): number => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const pct = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
-    setPosition(pct);
+    if (!rect) return position;
+    return Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
   };
 
   return (
     <div
       ref={containerRef}
-      className="relative h-72 w-full overflow-hidden rounded border border-ink/10 cursor-col-resize select-none"
-      onMouseMove={(e) => handleMove(e.clientX)}
-      onTouchMove={(e) => handleMove(e.touches[0]!.clientX)}
+      className="relative h-72 w-full select-none overflow-hidden rounded border border-ink/10"
+      style={{ cursor: dragging ? 'col-resize' : 'ew-resize' }}
+      onMouseDown={(e) => { setDragging(true); setPosition(getPercent(e.clientX)); }}
+      onMouseMove={(e) => { if (dragging) setPosition(getPercent(e.clientX)); }}
+      onMouseUp={() => setDragging(false)}
+      onMouseLeave={() => setDragging(false)}
+      onTouchStart={(e) => { setDragging(true); setPosition(getPercent(e.touches[0]!.clientX)); }}
+      onTouchMove={(e) => { e.preventDefault(); setPosition(getPercent(e.touches[0]!.clientX)); }}
+      onTouchEnd={() => setDragging(false)}
       role="img"
-      aria-label="Before and after color comparison slider"
+      aria-label="Before and after color comparison slider. Drag to compare original and grayscale."
     >
-      {/* After (grayscale) — full width underneath */}
-      <img src={src} alt="Grayscale variant" className="variant-gray absolute inset-0 h-full w-full object-cover" />
+      {/* Grayscale — full width underneath */}
+      <img
+        src={src}
+        alt="Grayscale variant"
+        className="variant-gray pointer-events-none absolute inset-0 h-full w-full object-cover"
+        draggable={false}
+      />
 
-      {/* Before (original) — clipped to slider position */}
-      <div className="absolute inset-0 overflow-hidden" style={{ width: `${position}%` }}>
-        <img src={src} alt="Original color variant" className="h-full w-full object-cover" style={{ width: containerRef.current?.offsetWidth ?? '100%' }} />
+      {/* Original — clipped to slider position */}
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        style={{ width: `${position}%` }}
+      >
+        <img
+          src={src}
+          alt="Original color variant"
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+        />
       </div>
 
-      {/* Divider line */}
+      {/* Divider handle */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg pointer-events-none"
+        className="pointer-events-none absolute bottom-0 top-0 w-0.5 bg-white shadow-lg"
         style={{ left: `${position}%` }}
       >
-        <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white shadow-lg flex items-center justify-center text-ink text-xs font-bold">
+        <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg text-ink text-xs font-bold select-none">
           ↔
         </div>
       </div>
 
       {/* Labels */}
-      <span className="absolute bottom-2 left-2 rounded bg-ink/60 px-2 py-0.5 text-xs text-ivory pointer-events-none">Original</span>
-      <span className="absolute bottom-2 right-2 rounded bg-ink/60 px-2 py-0.5 text-xs text-ivory pointer-events-none">Grayscale</span>
+      <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-ink/60 px-2 py-0.5 text-xs text-ivory">
+        Original
+      </span>
+      <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-ink/60 px-2 py-0.5 text-xs text-ivory">
+        Grayscale
+      </span>
     </div>
   );
 }

@@ -4,11 +4,10 @@ import { GalleryCard } from '../components/GalleryCard';
 import { ImageViewer } from '../components/ImageViewer';
 import { SectionTitle } from '../components/SectionTitle';
 import { galleryImages, hasLocalDataset } from '../data/gallery';
-import type { PageKey, TextileCategory, TextileImage } from '../types';
+import type { TextileCategory, TextileImage } from '../types';
 import { useFavorites } from '../utils/favorites';
 
 interface GalleryProps {
-  navigate?: (page: PageKey) => void;
   onFindSimilar?: (image: TextileImage) => void;
 }
 
@@ -57,14 +56,14 @@ export function Gallery({ onFindSimilar }: GalleryProps) {
         </div>
 
         {/* Saved filter toggle */}
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             className={`chip text-sm ${showSaved ? 'chip-active' : ''}`}
             onClick={() => setShowSaved((v) => !v)}
             aria-pressed={showSaved}
           >
-            ♥ Saved Designs {savedCount > 0 ? `(${savedCount})` : ''}
+            ♥ Saved Designs{savedCount > 0 ? ` (${savedCount})` : ''}
           </button>
           {showSaved && savedCount === 0 ? (
             <p className="text-sm text-ink/55">No saved designs yet. Click ♡ Save on any image.</p>

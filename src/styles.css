@@ -270,14 +270,9 @@ input:focus-visible {
     padding: 1.5rem 1rem;
   }
 
-  .btn {
+  /* Only full-width buttons that explicitly have w-full class */
+  .btn.w-full {
     min-height: 48px;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .btn-ghost {
-    width: auto;
   }
 
   .chip {
