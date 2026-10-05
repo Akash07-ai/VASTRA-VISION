@@ -1,7 +1,15 @@
-import type { MatchResult } from '../types';
+import type { MatchResult, TextileImage } from '../types';
+import { FavoriteButton } from './FavoriteButton';
 import { SimilarityMeter } from './SimilarityMeter';
 
-export function MatchCard({ match }: { match: MatchResult }) {
+interface MatchCardProps {
+  match: MatchResult;
+  onFindSimilar?: (image: TextileImage) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
+}
+
+export function MatchCard({ match, onFindSimilar, isFavorite = false, onToggleFavorite }: MatchCardProps) {
   return (
     <article className="card overflow-hidden">
       {match.image ? (
@@ -12,7 +20,7 @@ export function MatchCard({ match }: { match: MatchResult }) {
           loading="lazy"
         />
       ) : (
-        <div className="flex h-48 items-center justify-center bg-woven text-center text-sm text-ink/60">
+        <div className="flex h-48 items-center justify-center bg-woven text-center text-sm text-ink/60 px-4">
           Add dataset images to show this match.
         </div>
       )}
@@ -23,6 +31,22 @@ export function MatchCard({ match }: { match: MatchResult }) {
         </div>
         <SimilarityMeter value={match.similarity} />
         <p className="mt-3 text-sm text-ink/65">{match.strength}</p>
+        {(onFindSimilar && match.image) || onToggleFavorite ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {onFindSimilar && match.image ? (
+              <button
+                className="btn btn-ghost text-xs"
+                onClick={() => onFindSimilar(match.image!)}
+                aria-label={`Find designs similar to this ${match.category}`}
+              >
+                Find Similar
+              </button>
+            ) : null}
+            {onToggleFavorite && match.image ? (
+              <FavoriteButton id={match.image.id} isFavorite={isFavorite} onToggle={onToggleFavorite} />
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </article>
   );
