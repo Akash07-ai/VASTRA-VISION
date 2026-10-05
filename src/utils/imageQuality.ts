@@ -11,8 +11,16 @@ export interface ImageQualityReport {
 function formatFromMime(mime: string): string {
   const map: Record<string, string> = {
     'image/jpeg': 'JPEG',
+    'image/jpg': 'JPEG',
     'image/png': 'PNG',
     'image/webp': 'WEBP',
+    'image/avif': 'AVIF',
+    'image/gif': 'GIF',
+    'image/bmp': 'BMP',
+    'image/tiff': 'TIFF',
+    'image/svg+xml': 'SVG',
+    'image/heic': 'HEIC',
+    'image/heif': 'HEIF',
   };
   return map[mime] ?? mime.split('/')[1]?.toUpperCase() ?? 'Unknown';
 }
